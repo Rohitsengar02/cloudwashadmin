@@ -29,6 +29,17 @@ class _SubCategoriesScreenState extends State<SubCategoriesScreen> {
     _fetchData();
   }
 
+  @override
+  void didUpdateWidget(covariant SubCategoriesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCategoryFilter != oldWidget.initialCategoryFilter) {
+      setState(() {
+        _selectedCategoryFilter =
+            widget.initialCategoryFilter ?? 'All Categories';
+      });
+    }
+  }
+
   Future<void> _fetchData() async {
     try {
       final baseUrl = AppConfig.apiUrl;
