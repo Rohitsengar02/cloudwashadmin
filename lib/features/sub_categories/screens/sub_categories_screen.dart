@@ -7,7 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 
 class SubCategoriesScreen extends StatefulWidget {
-  const SubCategoriesScreen({super.key});
+  final String? initialCategoryFilter;
+  const SubCategoriesScreen({super.key, this.initialCategoryFilter});
 
   @override
   State<SubCategoriesScreen> createState() => _SubCategoriesScreenState();
@@ -22,6 +23,9 @@ class _SubCategoriesScreenState extends State<SubCategoriesScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialCategoryFilter != null) {
+      _selectedCategoryFilter = widget.initialCategoryFilter!;
+    }
     _fetchData();
   }
 

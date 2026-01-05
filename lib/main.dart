@@ -117,7 +117,11 @@ class _CloudAdminAppState extends State<CloudAdminApp> {
             ),
             GoRoute(
               path: '/sub-categories',
-              builder: (context, state) => const SubCategoriesScreen(),
+              builder: (context, state) {
+                final initialCategory = state.extra as String?;
+                return SubCategoriesScreen(
+                    initialCategoryFilter: initialCategory);
+              },
               routes: [
                 GoRoute(
                   path: 'add',
