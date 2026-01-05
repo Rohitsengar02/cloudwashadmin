@@ -30,12 +30,14 @@ import 'package:cloud_admin/layout/dashboard_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
+  usePathUrlStrategy();
   await dotenv.load(fileName: ".env");
   final prefs = await SharedPreferences.getInstance();
   final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
