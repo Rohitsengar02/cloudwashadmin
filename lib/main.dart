@@ -1,4 +1,5 @@
 import 'package:cloud_admin/core/theme/app_theme.dart';
+import 'package:cloud_admin/core/widgets/socket_listener_wrapper.dart';
 import 'package:cloud_admin/features/addons/screens/add_addon_screen.dart';
 import 'package:cloud_admin/features/addons/screens/addons_screen.dart';
 import 'package:cloud_admin/features/auth/screens/login_screen.dart';
@@ -36,9 +37,15 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_admin/core/firebase/firebase_options.dart';
+
 void main() async {
   usePathUrlStrategy();
   await dotenv.load(fileName: ".env");
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   final prefs = await SharedPreferences.getInstance();
   final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
 
@@ -69,7 +76,9 @@ class _CloudAdminAppState extends State<CloudAdminApp> {
         ShellRoute(
           pageBuilder: (context, state, child) {
             return NoTransitionPage(
-              child: DashboardLayout(child: child),
+              child: SocketListenerWrapper(
+                child: DashboardLayout(child: child),
+              ),
             );
           },
           routes: [

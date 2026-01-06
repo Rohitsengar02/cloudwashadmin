@@ -225,12 +225,23 @@ class _AddonsScreenState extends State<AddonsScreen> {
           itemCount: _addons.length,
           itemBuilder: (context, index) {
             final addon = _addons[index];
+            final catName =
+                (addon['category'] != null && addon['category'] is Map)
+                    ? addon['category']['name']
+                    : null;
+            final subCatName =
+                (addon['subCategory'] != null && addon['subCategory'] is Map)
+                    ? addon['subCategory']['name']
+                    : null;
+
             return AddonCard(
               title: addon['name'] ?? 'No Name',
               description: addon['description'] ?? '',
               price: '₹${addon['price']}',
               duration: addon['duration'] ?? '',
               imageUrl: addon['imageUrl'],
+              category: catName,
+              subCategory: subCatName,
               placeholderColor: Colors.grey.shade800,
               onEdit: () async {
                 await context.push('/addons/add', extra: addon);
