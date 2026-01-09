@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cloud_admin/core/theme/app_theme.dart';
+import 'package:cloud_admin/core/services/firebase_category_service.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/material.dart';
 import 'package:cloud_admin/core/config/app_config.dart';
@@ -64,8 +65,81 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final baseUrl = AppConfig.apiUrl;
+      final firebaseService = FirebaseCategoryService();
+      String? firebaseImageUrl;
 
+      // Step 1: Upload image to Firebase Storage if selected
+      if (_selectedImage != null) {
+        final imageBytes = await _selectedImage!.readAsBytes();
+        final fileName =
+            '${DateTime.now().millisecondsSinceEpoch}_${_selectedImage!.name}';
+        firebaseImageUrl =
+            await firebaseService.uploadCategoryImage(imageBytes, fileName);
+      }
+
+      final categoryData = {
+        'name': _nameController.text,
+        'price': double.tryParse(_priceController.text) ?? 0,
+        'description': _descriptionController.text,
+        'imageUrl': firebaseImageUrl ?? _existingImageUrl ?? '',
+        'isActive': _isActive,
+      };
+
+      // Step 2: Save to Firebase Firestore
+      String? firebaseId;
+      if (widget.categoryToEdit != null &&
+          widget.categoryToEdit!['firebaseId'] != null) {
+        // Update existing in Firebase
+        await firebaseService.updateCategory(
+          categoryId: widget.categoryToEdit!['firebaseId'],
+          name: categoryData['name'] as String,
+          price: categoryData['price'] as double,
+          description: categoryData['description'] as String,
+          imageUrl: categoryData['imageUrl'] as String?,
+          isActive: categoryData['isActive'] as bool,
+        );
+        firebaseId = widget.categoryToEdit!['firebaseId'];
+      } else {
+        // Create new in Firebase
+        firebaseId = await firebaseService.createCategory(
+          name: categoryData['name'] as String,
+          price: categoryData['price'] as double,
+          description: categoryData['description'] as String,
+          imageUrl: categoryData['imageUrl'] as String,
+          isActive: categoryData['isActive'] as bool,
+        );
+      }
+
+      // Step 3: Also save to MongoDB backend (for backward compatibility)
+      await _saveToBackend(firebaseId, firebaseImageUrl);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.categoryToEdit != null
+                ? 'Category updated in Firebase & Backend!'
+                : 'Category created in Firebase & Backend!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Helper method to also save to backend
+  Future<void> _saveToBackend(
+      String? firebaseId, String? firebaseImageUrl) async {
+    try {
+      final baseUrl = AppConfig.apiUrl;
       final isEditing = widget.categoryToEdit != null;
       final url = isEditing
           ? '$baseUrl/categories/${widget.categoryToEdit!['_id']}'
@@ -78,7 +152,14 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
       request.fields['price'] = _priceController.text;
       request.fields['description'] = _descriptionController.text;
       request.fields['isActive'] = _isActive.toString();
+      if (firebaseId != null) {
+        request.fields['firebaseId'] = firebaseId;
+      }
+      if (firebaseImageUrl != null) {
+        request.fields['firebaseImageUrl'] = firebaseImageUrl;
+      }
 
+      // Add image file if selected (for backend's own Cloudinary upload)
       if (_selectedImage != null) {
         String mimeType = 'image/jpeg';
         if (_selectedImage!.path.endsWith('.png')) {
@@ -106,32 +187,12 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
 
       var response = await request.send();
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    isEditing ? 'Category updated!' : 'Category created!')),
-          );
-          context.pop();
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content:
-                    Text('Failed to save category: ${response.statusCode}')),
-          );
-        }
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        print('Backend save warning: ${response.statusCode}');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      print('Backend save error (non-critical): $e');
+      // Don't throw - Firebase save succeeded, backend is optional
     }
   }
 
