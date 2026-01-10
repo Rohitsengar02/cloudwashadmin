@@ -21,14 +21,12 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   Future<void> _updateStatus(String newStatus) async {
     setState(() => _isLoading = true);
     try {
-      final orderId = widget.booking['orderId'] ??
-          widget.booking['_id']; // Handle different id fields
-
       final dbId = widget.booking['_id'];
+      final userId = widget.booking['userId'];
 
       await ref
           .read(bookingsRepositoryProvider)
-          .updateBookingStatus(dbId, newStatus);
+          .updateBookingStatus(dbId, newStatus, userId: userId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -146,7 +144,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                       ),
                       title: Text(s['name']),
                       subtitle: Text('Qty: ${s['quantity']}'),
-                      trailing: Text('₹${s['total']}',
+                      trailing: Text('₹${(s['total'] as num).toInt()}',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                     )),
                 const Divider(),
@@ -157,7 +155,8 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                     const Text('Total Amount',
                         style: TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text('₹${booking['priceSummary']?['total'] ?? 0}',
+                    Text(
+                        '₹${(booking['priceSummary']?['total'] as num? ?? 0).toInt()}',
                         style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,

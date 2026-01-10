@@ -61,8 +61,9 @@ class DashboardStats {
 
 final dashboardOrdersProvider =
     StreamProvider<List<QueryDocumentSnapshot>>((ref) {
+  // Query all orders from all users using collection group
   return FirebaseFirestore.instance
-      .collection('orders')
+      .collectionGroup('orders')
       .orderBy('createdAt', descending: true)
       .snapshots()
       .map((snapshot) => snapshot.docs);
@@ -154,10 +155,22 @@ final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
 
       if (status == 'cancelled') cancelledCount++;
 
-      final createdAtStr = data['createdAt'];
+      final createdAtValue = data['createdAt'];
       DateTime? createdAtDate;
-      if (createdAtStr != null) {
-        createdAtDate = DateTime.tryParse(createdAtStr);
+      if (createdAtValue != null) {
+        // Handle Firestore Timestamp
+        if (createdAtValue is Timestamp) {
+          createdAtDate = createdAtValue.toDate();
+        } else if (createdAtValue is String) {
+          createdAtDate = DateTime.tryParse(createdAtValue);
+        } else if (createdAtValue is Map &&
+            createdAtValue.containsKey('_seconds')) {
+          final seconds = createdAtValue['_seconds'] as int;
+          final nanoseconds = createdAtValue['_nanoseconds'] as int? ?? 0;
+          createdAtDate = DateTime.fromMillisecondsSinceEpoch(
+            seconds * 1000 + (nanoseconds / 1000000).floor(),
+          );
+        }
       }
 
       if (createdAtDate != null) {
