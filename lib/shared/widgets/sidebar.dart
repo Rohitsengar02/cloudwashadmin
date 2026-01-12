@@ -1,9 +1,19 @@
 import 'package:cloud_admin/core/theme/app_theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class Sidebar extends StatelessWidget {
+final pendingBookingsCountProvider = StreamProvider<int>((ref) {
+  return FirebaseFirestore.instance
+      .collection('orders')
+      .where('status', isEqualTo: 'pending')
+      .snapshots()
+      .map((snapshot) => snapshot.docs.length);
+});
+
+class Sidebar extends ConsumerWidget {
   const Sidebar({super.key});
 
   Future<void> _logout(BuildContext context) async {
@@ -15,7 +25,10 @@ class Sidebar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pendingCountAsync = ref.watch(pendingBookingsCountProvider);
+    final pendingCount = pendingCountAsync.valueOrNull ?? 0;
+
     return Container(
       width: 260,
       color: AppTheme.sidebarColor,
@@ -55,6 +68,7 @@ class Sidebar extends StatelessWidget {
                   icon: Icons.calendar_today_outlined,
                   title: 'Bookings',
                   path: '/bookings',
+                  badgeCount: pendingCount,
                 ),
                 _SidebarItem(
                   icon: Icons.analytics_outlined,
@@ -139,6 +153,7 @@ class _SidebarItem extends StatelessWidget {
   final String path;
   final VoidCallback? onTap;
   final bool isDestructive;
+  final int? badgeCount;
 
   const _SidebarItem({
     required this.icon,
@@ -146,6 +161,7 @@ class _SidebarItem extends StatelessWidget {
     required this.path,
     this.onTap,
     this.isDestructive = false,
+    this.badgeCount,
   });
 
   @override
@@ -171,13 +187,35 @@ class _SidebarItem extends StatelessWidget {
           color: color,
           size: 20,
         ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-          ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 14,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ),
+            if (badgeCount != null && badgeCount! > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$badgeCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
         ),
         onTap: () {
           // Close drawer if on mobile

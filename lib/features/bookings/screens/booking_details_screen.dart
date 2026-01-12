@@ -1,4 +1,6 @@
 import 'package:cloud_admin/core/theme/app_theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_admin/features/bookings/data/bookings_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -206,7 +208,42 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     );
   }
 
+  Map<String, dynamic>? _fullUserData;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFullUserDetails();
+  }
+
+  Future<void> _fetchFullUserDetails() async {
+    final userId = widget.booking['userId'];
+    if (userId == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _fullUserData = doc.data();
+        });
+      }
+    } catch (e) {
+      print('Error fetching user details: $e');
+    }
+  }
+
   Widget _buildSidebar(Map booking, Map user) {
+    // Prefer full fetched data over order snapshot data
+    final displayUser = _fullUserData ?? user;
+    final name = displayUser['name'] ?? displayUser['fullName'] ?? 'Guest';
+    final email = displayUser['email'] ?? 'No Email';
+    final phone =
+        displayUser['phone'] ?? displayUser['phoneNumber'] ?? 'No Phone';
+    final image = displayUser['profileImage'] ?? displayUser['photoUrl'];
+
     return Column(
       children: [
         Card(
@@ -215,30 +252,35 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Customer', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 16),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(child: Text(user['name']?[0] ?? 'U')),
-                  title: Text(user['name'] ?? 'Unknown'),
-                  subtitle: Text(user['email'] ?? ''),
-                ),
-                if (user['phone'] != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.phone, size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Text(user['phone'],
-                          style: const TextStyle(color: Colors.grey)),
-                    ],
+                Text('Customer Details',
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 20),
+                Center(
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundImage: image != null ? NetworkImage(image) : null,
+                    backgroundColor: Colors.blue.shade100,
+                    child: image == null
+                        ? Text(name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                            style: const TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.bold))
+                        : null,
                   ),
-                ]
+                ),
+                const SizedBox(height: 16),
+                _buildDetailRow(Icons.person, 'Name', name),
+                const SizedBox(height: 12),
+                _buildDetailRow(Icons.email, 'Email', email),
+                const SizedBox(height: 12),
+                _buildDetailRow(Icons.phone, 'Phone', phone),
+                const SizedBox(height: 12),
+                _buildDetailRow(Icons.pin_drop, 'Address',
+                    '${booking['address']?['houseNumber'] ?? ''}, ${booking['address']?['city'] ?? ''}'),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 24), // Existing Actions Card continues...
         Card(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -256,6 +298,28 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                 _actionButton('Cancel Order', 'cancelled', Colors.red),
               ],
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: Colors.grey),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w500)),
+            ],
           ),
         ),
       ],

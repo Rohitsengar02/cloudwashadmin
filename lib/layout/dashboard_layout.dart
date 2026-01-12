@@ -3,11 +3,104 @@ import 'package:cloud_admin/shared/widgets/sidebar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_admin/core/services/socket_service.dart';
 
-class DashboardLayout extends StatelessWidget {
+class DashboardLayout extends ConsumerStatefulWidget {
   final Widget child;
 
   const DashboardLayout({super.key, required this.child});
+
+  @override
+  ConsumerState<DashboardLayout> createState() => _DashboardLayoutState();
+}
+
+class _DashboardLayoutState extends ConsumerState<DashboardLayout> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize Notification Listener globally
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final socketService = ref.read(socketServiceProvider);
+      socketService.init();
+      socketService.onNewOrder((data) {
+        if (mounted) {
+          final location = GoRouterState.of(context).uri.toString();
+          // If we are on the bookings page, do NOT show the popup (as requested)
+          // and do NOT start infinite ringing (to avoid ghost sound).
+          if (location == '/bookings') {
+            return;
+          }
+
+          socketService.startRinging();
+          _showNewOrderDialog(context, data);
+        }
+      });
+    });
+  }
+
+  void _showNewOrderDialog(BuildContext context, Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.notifications_active,
+                color: Colors.green, size: 28),
+            const SizedBox(width: 10),
+            const Text('New Booking Received!'),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Order #${data['orderNumber']}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 10),
+              Text('Customer: ${data['customerName']}'),
+              Text('Total Amount: ₹${data['amount']}'),
+              const SizedBox(height: 10),
+              const Text('Items:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              ...(data['services'] as List)
+                  .map<Widget>((s) => Text('• ${s['name']}'))
+                  .toList(),
+              const SizedBox(height: 20),
+              const Text('Please review this order in the Bookings section.',
+                  style: TextStyle(color: Colors.grey, fontSize: 12)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              ref.read(socketServiceProvider).stopRinging(); // Stop Sound
+              Navigator.pop(context); // Close dialog
+            },
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              ref.read(socketServiceProvider).stopRinging(); // Stop Sound
+              Navigator.pop(context); // Close dialog
+              context.go('/bookings'); // Navigate to bookings
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('View Booking'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +116,7 @@ class DashboardLayout extends StatelessWidget {
                 children: [
                   const _DashboardHeader(showMenuButton: false),
                   Expanded(
-                    child: child,
+                    child: widget.child,
                   ),
                 ],
               ),
@@ -38,7 +131,7 @@ class DashboardLayout extends StatelessWidget {
           child: _DashboardHeader(showMenuButton: true),
         ),
         drawer: const Sidebar(),
-        body: child,
+        body: widget.child,
       );
     }
   }
