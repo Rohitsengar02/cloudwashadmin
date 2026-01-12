@@ -1,11 +1,8 @@
-import 'package:cloud_admin/core/theme/app_theme.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_admin/features/bookings/data/bookings_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 class BookingDetailsScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> booking;
