@@ -1,20 +1,11 @@
 {
     "version": 2,
     "cleanUrls": true,
+    "outputDirectory": "build/web",
     "rewrites": [
         {
             "source": "/(.*)",
             "destination": "/index.html"
-        }
-    ],
-    "routes": [
-        {
-            "src": "/(favicon.png|manifest.json|flutter_service_worker.js|main.dart.js|assets/.*)",
-            "continue": true
-        },
-        {
-            "src": "/.*",
-            "dest": "/index.html"
         }
     ]
 }
